@@ -51,14 +51,12 @@
 
     async function loadModels() {
       try {
-        // Debug: Check if faceapi is defined
         if (typeof faceapi === 'undefined') {
           throw new Error('faceapi is not defined');
         }
         console.log('faceapi is defined:', faceapi);
         console.log('faceapi.nets:', faceapi.nets);
 
-        // Use the official face-api.js model files hosted on GitHub raw
         const tinyFaceDetectorPath = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/weights/tiny_face_detector/';
         const faceExpressionNetPath = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/weights/face_expression/';
 
@@ -79,7 +77,6 @@
       }
     }
 
-    // Wait for the face-api.js script to load before calling loadModels
     const faceapiScript = document.getElementById('faceapi-script');
     faceapiScript.onload = () => {
       console.log('face-api.js script loaded');
