@@ -58,14 +58,17 @@
         console.log('faceapi is defined:', faceapi);
         console.log('faceapi.nets:', faceapi.nets);
 
-        const modelBaseUrl = '/ai-music-therapist/models/';  // Fixed model path
-        console.log('Loading tinyFaceDetector from:', modelBaseUrl);
-        await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
+        // Use the official face-api.js model files hosted on GitHub raw
+        const tinyFaceDetectorPath = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/weights/tiny_face_detector/';
+        const faceExpressionNetPath = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/weights/face_expression/';
+
+        console.log('Loading tinyFaceDetector from:', tinyFaceDetectorPath);
+        await faceapi.nets.tinyFaceDetector.loadFromUri(tinyFaceDetectorPath);
         console.log('tinyFaceDetector loaded');
         statusDiv.textContent = 'tinyFaceDetector loaded, loading faceExpressionNet...';
 
-        console.log('Loading faceExpressionNet from:', modelBaseUrl);
-        await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
+        console.log('Loading faceExpressionNet from:', faceExpressionNetPath);
+        await faceapi.nets.faceExpressionNet.loadFromUri(faceExpressionNetPath);
         console.log('faceExpressionNet loaded');
         statusDiv.textContent = 'Models loaded, starting webcam...';
 
