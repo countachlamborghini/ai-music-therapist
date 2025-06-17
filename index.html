@@ -21,29 +21,29 @@
     const video = document.getElementById('video');
     const statusDiv = document.getElementById('status');
 
-    let currentAudio = new Audio('https://example.com/audio/528hz.mp3');
+    let currentAudio = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3'); // 528Hz sample
     currentAudio.loop = true;
     currentAudio.volume = 0.5;
 
     const FREQUENCIES = {
-      happy: '639hz.mp3',
-      sad: '396hz.mp3',
-      angry: '396hz.mp3',
-      neutral: '528hz.mp3',
-      surprised: '639hz.mp3',
-      fearful: '396hz.mp3',
-      disgusted: '396hz.mp3'
+      happy: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',  // 639Hz sample
+      sad: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',    // 396Hz sample
+      angry: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
+      neutral: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3',
+      surprised: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
+      fearful: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
+      disgusted: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3'
     };
 
     async function changeMusic(emotion) {
-      const filename = FREQUENCIES[emotion] || '528hz.mp3';
-      const newAudio = new Audio(`https://example.com/audio/${filename}`);
+      const url = FREQUENCIES[emotion] || FREQUENCIES['neutral'];
+      const newAudio = new Audio(url);
       newAudio.loop = true;
       newAudio.volume = 0.5;
       currentAudio.pause();
       currentAudio = newAudio;
       currentAudio.play();
-      statusDiv.textContent = `Emotion: ${emotion} | Playing: ${filename}`;
+      statusDiv.textContent = `Emotion: ${emotion} | Playing frequency for mood`;
     }
 
     Promise.all([
@@ -56,7 +56,10 @@
         .then(stream => {
           video.srcObject = stream;
         })
-        .catch(err => console.error('Camera error:', err));
+        .catch(err => {
+          console.error('Camera error:', err);
+          statusDiv.textContent = 'Camera access denied or not available.';
+        });
     }
 
     video.addEventListener('play', () => {
