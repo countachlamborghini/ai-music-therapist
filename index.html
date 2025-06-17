@@ -1,6 +1,3 @@
-
-## 🧾 `index.html` (Latest Version with Google Drive Hosting Option)
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,27 +58,17 @@
         console.log('faceapi is defined:', faceapi);
         console.log('faceapi.nets:', faceapi.nets);
 
-        // Replace these URLs with your Google Drive direct links
-        const tinyFaceDetectorPath = 'https://drive.google.com/uc?export=download&id=<tiny_face_detector_file_id>';
-        const faceExpressionNetPath = 'https://drive.google.com/uc?export=download&id=<face_expression_file_id>';
+        const modelBaseUrl = 'https://countachlamborghini.github.io/ai-music-therapist/models';
 
-        try {
-          console.log('Loading tinyFaceDetector from:', tinyFaceDetectorPath);
-          await faceapi.nets.tinyFaceDetector.loadFromUri(tinyFaceDetectorPath);
-          console.log('tinyFaceDetector loaded');
-          statusDiv.textContent = 'tinyFaceDetector loaded, loading faceExpressionNet...';
-        } catch (err) {
-          throw new Error('Failed to load tinyFaceDetector: ' + err.message);
-        }
+        console.log('Loading tinyFaceDetector from:', modelBaseUrl);
+        await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
+        console.log('tinyFaceDetector loaded');
+        statusDiv.textContent = 'tinyFaceDetector loaded, loading faceExpressionNet...';
 
-        try {
-          console.log('Loading faceExpressionNet from:', faceExpressionNetPath);
-          await faceapi.nets.faceExpressionNet.loadFromUri(faceExpressionNetPath);
-          console.log('faceExpressionNet loaded');
-          statusDiv.textContent = 'Models loaded, starting webcam...';
-        } catch (err) {
-          throw new Error('Failed to load faceExpressionNet: ' + err.message);
-        }
+        console.log('Loading faceExpressionNet from:', modelBaseUrl);
+        await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
+        console.log('faceExpressionNet loaded');
+        statusDiv.textContent = 'Models loaded, starting webcam...';
 
         startVideo();
       } catch (err) {
