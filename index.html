@@ -1,15 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>AI Music Therapist</title>
-  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.js" id="faceapi-script"></script>
   <style>
     body { font-family: sans-serif; text-align: center; background: #f0f0f0; }
     video { margin-top: 20px; border: 2px solid #444; border-radius: 10px; }
     #status { margin-top: 20px; font-size: 1.2em; }
-    button { padding: 10px 20px; font-size: 1em; margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -18,16 +16,18 @@
   <div id="status">Initializing...</div>
 
   <script>
+    console.log('Script started');
+
     const video = document.getElementById('video');
     const statusDiv = document.getElementById('status');
 
-    let currentAudio = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3'); // 528Hz sample
+    let currentAudio = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3');
     currentAudio.loop = true;
     currentAudio.volume = 0.5;
 
     const FREQUENCIES = {
-      happy: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',  // 639Hz sample
-      sad: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',    // 396Hz sample
+      happy: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
+      sad: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
       angry: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
       neutral: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3',
       surprised: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
@@ -46,29 +46,81 @@
       statusDiv.textContent = `Emotion: ${emotion} | Playing frequency for mood`;
     }
 
-    Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri('models'),
-      faceapi.nets.faceExpressionNet.loadFromUri('models')
-    ]).then(startVideo);
+    console.log('About to load models');
+    statusDiv.textContent = 'Loading models...';
+
+    async function loadModels() {
+      try {
+        // Debug: Check if faceapi is defined
+        if (typeof faceapi === 'undefined') {
+          throw new Error('faceapi is not defined');
+        }
+        console.log('faceapi is defined:', faceapi);
+        console.log('faceapi.nets:', faceapi.nets);
+
+        // Replace these URLs with your Google Drive direct links
+        const tinyFaceDetectorPath = 'https://drive.google.com/uc?export=download&id=<tiny_face_detector_file_id>';
+        const faceExpressionNetPath = 'https://drive.google.com/uc?export=download&id=<face_expression_file_id>';
+
+        try {
+          console.log('Loading tinyFaceDetector from:', tinyFaceDetectorPath);
+          await faceapi.nets.tinyFaceDetector.loadFromUri(tinyFaceDetectorPath);
+          console.log('tinyFaceDetector loaded');
+          statusDiv.textContent = 'tinyFaceDetector loaded, loading faceExpressionNet...';
+        } catch (err) {
+          throw new Error('Failed to load tinyFaceDetector: ' + err.message);
+        }
+
+        try {
+          console.log('Loading faceExpressionNet from:', faceExpressionNetPath);
+          await faceapi.nets.faceExpressionNet.loadFromUri(faceExpressionNetPath);
+          console.log('faceExpressionNet loaded');
+          statusDiv.textContent = 'Models loaded, starting webcam...';
+        } catch (err) {
+          throw new Error('Failed to load faceExpressionNet: ' + err.message);
+        }
+
+        startVideo();
+      } catch (err) {
+        console.error('Model loading failed:', err);
+        statusDiv.textContent = 'Failed to load models: ' + err.message + '. Check console.';
+      }
+    }
+
+    // Wait for the face-api.js script to load before calling loadModels
+    const faceapiScript = document.getElementById('faceapi-script');
+    faceapiScript.onload = () => {
+      console.log('face-api.js script loaded');
+      loadModels();
+    };
+    faceapiScript.onerror = () => {
+      console.error('Failed to load face-api.js script');
+      statusDiv.textContent = 'Error: Failed to load face-api.js script';
+    };
 
     function startVideo() {
       navigator.mediaDevices.getUserMedia({ video: {} })
         .then(stream => {
           video.srcObject = stream;
+          console.log('Webcam started');
+          statusDiv.textContent = 'Webcam started, detecting emotions...';
         })
         .catch(err => {
           console.error('Camera error:', err);
-          statusDiv.textContent = 'Camera access denied or not available.';
+          statusDiv.textContent = `Camera access failed: ${err.message}`;
         });
     }
 
     video.addEventListener('play', () => {
+      console.log('Video playing');
       setInterval(async () => {
         const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
         if (detections.length > 0) {
           const expr = detections[0].expressions;
           const topEmotion = Object.entries(expr).reduce((a, b) => a[1] > b[1] ? a : b)[0];
           changeMusic(topEmotion);
+        } else {
+          statusDiv.textContent = 'No face detected';
         }
       }, 5000);
     });
