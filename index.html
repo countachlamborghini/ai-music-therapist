@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Music Therapist</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; background: #f0f0f0; }
+    video { margin-top: 20px; border: 2px solid #444; border-radius: 10px; }
+    #status { margin-top: 20px; font-size: 1.2em; }
+    button { padding: 10px 20px; font-size: 1em; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>AI Music Therapist for Autism</h1>
+  <video id="video" width="640" height="480" autoplay muted></video>
+  <div id="status">Initializing...</div>
+
+  <script>
+    const video = document.getElementById('video');
+    const statusDiv = document.getElementById('status');
+
+    let currentAudio = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3'); // 528Hz sample
+    currentAudio.loop = true;
+    currentAudio.volume = 0.5;
+
+    const FREQUENCIES = {
+      happy: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',  // 639Hz sample
+      sad: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',    // 396Hz sample
+      angry: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
+      neutral: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3',
+      surprised: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
+      fearful: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
+      disgusted: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3'
+    };
+
+    async function changeMusic(emotion) {
+      const url = FREQUENCIES[emotion] || FREQUENCIES['neutral'];
+      const newAudio = new Audio(url);
+      newAudio.loop = true;
+      newAudio.volume = 0.5;
+      currentAudio.pause();
+      currentAudio = newAudio;
+      currentAudio.play();
+      statusDiv.textContent = `Emotion: ${emotion} | Playing frequency for mood`;
+    }
+
+    Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri('models'),
+      faceapi.nets.faceExpressionNet.loadFromUri('models')
+    ]).then(startVideo);
+
+    function startVideo() {
+      navigator.mediaDevices.getUserMedia({ video: {} })
+        .then(stream => {
+          video.srcObject = stream;
+        })
+        .catch(err => {
+          console.error('Camera error:', err);
+          statusDiv.textContent = 'Camera access denied or not available.';
+        });
+    }
+
+    video.addEventListener('play', () => {
+      setInterval(async () => {
+        const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+        if (detections.length > 0) {
+          const expr = detections[0].expressions;
+          const topEmotion = Object.entries(expr).reduce((a, b) => a[1] > b[1] ? a : b)[0];
+          changeMusic(topEmotion);
+        }
+      }, 5000);
+    });
+  </script>
+</body>
+</html>
