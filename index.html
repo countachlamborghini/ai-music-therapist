@@ -49,34 +49,32 @@
     console.log('About to load models');
     statusDiv.textContent = 'Loading models...';
 
-    async function loadModels() {
-      try {
-        if (typeof faceapi === 'undefined') {
-          throw new Error('faceapi is not defined');
-        }
-        console.log('faceapi is defined:', faceapi);
-        console.log('faceapi.nets:', faceapi.nets);
-
-        // Use the specific commit that matches face-api.js 0.22.2
-        const tinyFaceDetectorPath = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/a1b2c3d4e5f6g7h8i9j0/weights/tiny_face_detector/';
-        const faceExpressionNetPath = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/a1b2c3d4e5f6g7h8i9j0/weights/face_expression/';
-
-        console.log('Loading tinyFaceDetector from:', tinyFaceDetectorPath);
-        await faceapi.nets.tinyFaceDetector.loadFromUri(tinyFaceDetectorPath);
-        console.log('tinyFaceDetector loaded');
-        statusDiv.textContent = 'tinyFaceDetector loaded, loading faceExpressionNet...';
-
-        console.log('Loading faceExpressionNet from:', faceExpressionNetPath);
-        await faceapi.nets.faceExpressionNet.loadFromUri(faceExpressionNetPath);
-        console.log('faceExpressionNet loaded');
-        statusDiv.textContent = 'Models loaded, starting webcam...';
-
-        startVideo();
-      } catch (err) {
-        console.error('Model loading failed:', err);
-        statusDiv.textContent = 'Failed to load models: ' + err.message + '. Check console.';
-      }
+ async function loadModels() {
+  try {
+    if (typeof faceapi === 'undefined') {
+      throw new Error('faceapi is not defined');
     }
+    console.log('faceapi is defined:', faceapi);
+    console.log('faceapi.nets:', faceapi.nets);
+
+    const modelBaseUrl = 'https://countachlamborghini.github.io/ai-music-therapist/models/';
+
+    console.log('Loading tinyFaceDetector from:', modelBaseUrl);
+    await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
+    console.log('tinyFaceDetector loaded');
+    statusDiv.textContent = 'tinyFaceDetector loaded, loading faceExpressionNet...';
+
+    console.log('Loading faceExpressionNet from:', modelBaseUrl);
+    await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
+    console.log('faceExpressionNet loaded');
+    statusDiv.textContent = 'Models loaded, starting webcam...';
+
+    startVideo();
+  } catch (err) {
+    console.error('Model loading failed:', err);
+    statusDiv.textContent = 'Failed to load models: ' + err.message + '. Check console.';
+  }
+}
 
     const faceapiScript = document.getElementById('faceapi-script');
     faceapiScript.onload = () => {
