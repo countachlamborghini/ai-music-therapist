@@ -51,17 +51,17 @@
       faceapi.nets.faceExpressionNet.loadFromUri('models')
     ]).then(startVideo);
 
-    function startVideo() {
-      navigator.mediaDevices.getUserMedia({ video: {} })
-        .then(stream => {
-          video.srcObject = stream;
-        })
-        .catch(err => {
-          console.error('Camera error:', err);
-          statusDiv.textContent = 'Camera access denied or not available.';
-        });
-    }
-
+function startVideo() {
+  navigator.mediaDevices.getUserMedia({ video: {} })
+    .then(stream => {
+      video.srcObject = stream;
+      console.log("✅ Webcam stream started");
+    })
+    .catch(err => {
+      console.error('❌ Camera error:', err);
+      statusDiv.textContent = 'Camera access denied or not available.';
+    });
+}
     video.addEventListener('play', () => {
       setInterval(async () => {
         const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
