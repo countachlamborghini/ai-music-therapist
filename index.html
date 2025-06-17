@@ -58,7 +58,7 @@
         console.log('faceapi is defined:', faceapi);
         console.log('faceapi.nets:', faceapi.nets);
 
-        const modelBaseUrl = 'https://countachlamborghini.github.io/ai-music-therapist/main/models/';
+        const modelBaseUrl = 'https://countachlamborghini.github.io/ai-music-therapist/main/tree/models/';
         console.log('Loading tinyFaceDetector from:', modelBaseUrl);
         await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
         console.log('tinyFaceDetector loaded');
