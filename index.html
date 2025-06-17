@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>AI Music Therapist</title>
-  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.js" id="faceapi-script"></script>
   <style>
     body { font-family: sans-serif; text-align: center; background: #f0f0f0; }
     video { margin-top: 20px; border: 2px solid #444; border-radius: 10px; }
@@ -17,6 +17,7 @@
 
   <script>
     console.log('Script started');
+
     const video = document.getElementById('video');
     const statusDiv = document.getElementById('status');
 
@@ -50,6 +51,13 @@
 
     async function loadModels() {
       try {
+        // Debug: Check if faceapi is defined
+        if (typeof faceapi === 'undefined') {
+          throw new Error('faceapi is not defined');
+        }
+        console.log('faceapi is defined:', faceapi);
+        console.log('faceapi.nets:', faceapi.nets);
+
         const modelBaseUrl = 'https://countachlamborghini.github.io/ai-music-therapist/models';
 
         console.log('Loading tinyFaceDetector from:', modelBaseUrl);
@@ -69,7 +77,16 @@
       }
     }
 
-    loadModels();
+    // Wait for the face-api.js script to load before calling loadModels
+    const faceapiScript = document.getElementById('faceapi-script');
+    faceapiScript.onload = () => {
+      console.log('face-api.js script loaded');
+      loadModels();
+    };
+    faceapiScript.onerror = () => {
+      console.error('Failed to load face-api.js script');
+      statusDiv.textContent = 'Error: Failed to load face-api.js script';
+    };
 
     function startVideo() {
       navigator.mediaDevices.getUserMedia({ video: {} })
