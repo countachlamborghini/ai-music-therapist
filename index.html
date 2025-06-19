@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Music Therapist</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.js" id="faceapi-script"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f8fbff;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      color: #004080;
+      margin-bottom: 10px;
+    }
+    video {
+      margin-top: 10px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    button {
+      margin: 10px 5px;
+      padding: 10px 16px;
+      font-size: 1em;
+      background-color: #0059b3;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #004080;
+    }
+    #status, #timer {
+      margin-top: 15px;
+      font-size: 1.1em;
+      color: #003366;
+    }
+    #statsBox {
+      display: none;
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+    textarea {
+      width: 80%;
+      height: 60px;
+      margin-top: 10px;
+      border-radius: 8px;
+      padding: 10px;
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎵 AI Music Therapist for Autism</h1>
+
+  <div id="modeSelector">
+    <p>Select Mode:</p>
+    <button onclick="setMode('calm')">🌿 Calm Mode</button>
+    <button onclick="setMode('dynamic')">🎭 Dynamic Mode</button>
+  </div>
+
+  <div id="consentBox" style="display:none;">
+    <p>Do you agree to start a session?</p>
+    <button onclick="startSession()">Yes</button>
+    <button onclick="location.reload()">No</button>
+  </div>
+
+  <video id="video" width="640" height="480" autoplay muted hidden></video>
+  <div id="status"></div>
+  <div id="timer"></div>
+  <div id="controls" style="display:none;">
+    <button onclick="endSession()">End Session</button>
+    <button onclick="location.reload()">New Session</button>
+    <button onclick="toggleStats()">Stats for Nerds</button>
+    <button onclick="generatePDF()">Download Session PDF</button>
+  </div>
+
+  <div id="statsBox">
+    <canvas id="emotionChart" width="400" height="200"></canvas>
+    <h3>Behavioral Notes</h3>
+    <textarea id="notes" placeholder="e.g., smiled, moved to beat, etc."></textarea>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const statusDiv = document.getElementById('status');
+    const timerDiv = document.getElementById('timer');
+    const controls = document.getElementById('controls');
+    const statsBox = document.getElementById('statsBox');
+    const notesField = document.getElementById('notes');
+
+    let sessionId = `session_${Date.now()}`;
+    let startTime, recorder, recordedChunks = [], emotionLog = [];
+    let currentAudio = new Audio();
+    currentAudio.loop = true;
+    currentAudio.volume = 0.5;
+
+    let timerInterval = null;
+    let currentMode = 'dynamic';
+
+    const FREQUENCIES = {
+      calm: {
+        happy: 'https://cdn.pixabay.com/download/audio/2023/04/19/audio_d17c6f05a6.mp3',
+        neutral: 'https://cdn.pixabay.com/download/audio/2022/10/27/audio_7d2a14c9d4.mp3'
+      },
+      dynamic: {
+        happy: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
+        sad: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
+        angry: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
+        neutral: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3',
+        surprised: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
+        fearful: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
+        disgusted: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3'
+      }
+    };
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('modeSelector').style.display = 'none';
+      document.getElementById('consentBox').style.display = 'block';
+    }
+
+    function toggleStats() {
+      statsBox.style.display = statsBox.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function changeMusic(emotion) {
+      if (currentMode === 'calm') {
+        if (['angry', 'fearful', 'disgusted', 'surprised'].includes(emotion)) {
+          emotion = 'neutral';
+        }
+      }
+
+      const map = FREQUENCIES[currentMode];
+      const url = map[emotion] || map['neutral'];
+      if (currentAudio.src === url) return;
+
+      const fadeDuration = currentMode === 'calm' ? 5000 : 3000;
+      const fadeInterval = 100;
+      const steps = fadeDuration / fadeInterval;
+      const volumeStep = 0.5 / steps;
+
+      const newAudio = new Audio(url);
+      newAudio.loop = true;
+      newAudio.volume = 0;
+      newAudio.play();
+
+      let currentStep = 0;
+      const crossfade = setInterval(() => {
+        if (currentStep < steps) {
+          if (currentAudio.volume > 0) currentAudio.volume -= volumeStep;
+          if (newAudio.volume < 0.5) newAudio.volume += volumeStep;
+          currentStep++;
+        } else {
+          clearInterval(crossfade);
+          currentAudio.pause();
+          currentAudio = newAudio;
+        }
+      }, fadeInterval);
+
+      statusDiv.textContent = `Emotion: ${emotion}`;
+      emotionLog.push(emotion);
+    }
+
+    function startVideo() {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+          video.srcObject = stream;
+          recorder = new MediaRecorder(stream);
+          recorder.ondataavailable = e => recordedChunks.push(e.data);
+          recorder.start();
+
+          startTime = Date.now();
+          timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            timerDiv.textContent = `Session ID: ${sessionId} | Time: ${elapsed}s`;
+          }, 1000);
+        });
+    }
+
+    async function loadModels() {
+      const modelBaseUrl = 'https://countachlamborghini.github.io/ai-music-therapist/models';
+      await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
+      await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
+      statusDiv.textContent = 'Models loaded. Starting camera...';
+      startVideo();
+    }
+
+    function startSession() {
+      document.getElementById('consentBox').style.display = 'none';
+      video.hidden = false;
+      controls.style.display = 'block';
+      loadModels();
+    }
+
+    function endSession() {
+      clearInterval(timerInterval);
+      currentAudio.pause();
+      recorder.stop();
+      video.srcObject.getTracks().forEach(t => t.stop());
+
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${sessionId}.webm`;
+      link.click();
+
+      showChart();
+    }
+
+    function showChart() {
+      const counts = {};
+      for (let emotion of emotionLog) {
+        counts[emotion] = (counts[emotion] || 0) + 1;
+      }
+      const labels = Object.keys(counts);
+      const data = Object.values(counts);
+
+      new Chart(document.getElementById("emotionChart"), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Emotion Frequency',
+            data,
+            backgroundColor: '#3399ff'
+          }]
+        }
+      });
+      statsBox.style.display = 'block';
+    }
+
+    async function generatePDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(16);
+      doc.text("AI Music Therapist - Session Summary", 10, 20);
+      doc.setFontSize(12);
+      doc.text(`Session ID: ${sessionId}`, 10, 30);
+      doc.text(`Timestamp: ${new Date().toLocaleString()}`, 10, 40);
+      doc.text("Emotion Log:", 10, 50);
+
+      emotionLog.forEach((e, i) => {
+        doc.text(`${i + 1}. ${e}`, 15, 60 + i * 7);
+      });
+
+      doc.text("Notes:", 10, 70 + emotionLog.length * 7);
+      const notes = notesField.value || "No notes added.";
+      doc.text(notes, 15, 80 + emotionLog.length * 7);
+
+      doc.save(`${sessionId}_summary.pdf`);
+    }
+
+    faceapiScript.onload = () => {
+      console.log("face-api loaded");
+    };
+
+    video.addEventListener('play', () => {
+      setInterval(async () => {
+        const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+        if (detections.length > 0) {
+          const expr = detections[0].expressions;
+          const topEmotion = Object.entries(expr).reduce((a, b) => a[1] > b[1] ? a : b)[0];
+          changeMusic(topEmotion);
+        } else {
+          statusDiv.textContent = "No face detected.";
+        }
+      }, 5000);
+    });
+  </script>
+</body>
+</html>
