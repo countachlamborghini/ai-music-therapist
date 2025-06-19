@@ -189,7 +189,8 @@
 
 
     async function loadModels() {
-      const modelBaseUrl = './models'; // <-- Fix: use relative path
+     // const modelBaseUrl = './models'; // <-- Fix: use relative path
+      const modelBaseUrl = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
       await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
       await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
       statusDiv.textContent = 'Models loaded. Starting camera...';
@@ -263,9 +264,9 @@
       doc.save(`${sessionId}_summary.pdf`);
     }
 
-    faceapiScript.onload = () => {
-      console.log("face-api loaded");
-    };
+  document.getElementById('faceapi-script').onload = () => {
+  console.log("face-api loaded");
+};
 
     video.addEventListener('play', () => {
       setInterval(async () => {
