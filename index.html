@@ -187,13 +187,14 @@
         });
     }
 
+
     async function loadModels() {
-      const modelBaseUrl = 'https://countachlamborghini.github.io/ai-music-therapist/models';
+      const modelBaseUrl = './models'; // <-- Fix: use relative path
       await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
       await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
       statusDiv.textContent = 'Models loaded. Starting camera...';
       startVideo();
-    }
+}
 
     function startSession() {
       document.getElementById('consentBox').style.display = 'none';
