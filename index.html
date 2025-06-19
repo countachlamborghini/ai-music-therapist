@@ -156,16 +156,20 @@
 
       let currentStep = 0;
       const crossfade = setInterval(() => {
-        if (currentStep < steps) {
-          if (currentAudio.volume > 0) currentAudio.volume -= volumeStep;
-          if (newAudio.volume < 0.5) newAudio.volume += volumeStep;
-          currentStep++;
-        } else {
-          clearInterval(crossfade);
-          currentAudio.pause();
-          currentAudio = newAudio;
-        }
-      }, fadeInterval);
+  if (currentStep < steps) {
+    if (currentAudio.volume > 0) {
+      currentAudio.volume = Math.max(0, currentAudio.volume - volumeStep);
+    }
+    if (newAudio.volume < 0.5) {
+      newAudio.volume = Math.min(0.5, newAudio.volume + volumeStep);
+    }
+    currentStep++;
+  } else {
+    clearInterval(crossfade);
+    currentAudio.pause();
+    currentAudio = newAudio;
+  }
+}, fadeInterval);
 
       statusDiv.textContent = `Emotion: ${emotion}`;
       emotionLog.push(emotion);
