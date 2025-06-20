@@ -273,17 +273,34 @@
 };
 
     video.addEventListener('play', () => {
-      setInterval(async () => {
-        const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
-        if (detections.length > 0) {
-          const expr = detections[0].expressions;
-          const topEmotion = Object.entries(expr).reduce((a, b) => a[1] > b[1] ? a : b)[0];
-          changeMusic(topEmotion);
-        } else {
-          statusDiv.textContent = "No face detected.";
+  setInterval(async () => {
+    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+    if (detections.length > 0) {
+      const expr = detections[0].expressions;
+
+      // Lower the "neutral" value artificially
+      const adjustedExpr = { ...expr };
+      adjustedExpr.neutral = adjustedExpr.neutral * 0.7; // Decrease neutral by 30%
+
+      // Find the top emotion after adjusting neutral
+      let topEmotion = Object.entries(adjustedExpr).reduce((a, b) => a[1] > b[1] ? a : b)[0];
+
+      // Optional: If neutral is still top, but another emotion is close, pick that emotion instead
+      if (topEmotion === 'neutral') {
+        // Find the second highest emotion
+        const sorted = Object.entries(adjustedExpr).sort((a, b) => b[1] - a[1]);
+        const [first, second] = sorted;
+        if (second && (first[1] - second[1] < 0.18)) { // If second is within 0.18 of neutral
+          topEmotion = second[0];
         }
-      }, 5000);
-    });
+      }
+
+      changeMusic(topEmotion);
+    } else {
+      statusDiv.textContent = "No face detected.";
+    }
+  }, 5000);
+});
   </script>
 </body>
 </html>
