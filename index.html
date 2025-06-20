@@ -107,6 +107,10 @@
     let timerInterval = null;
     let currentMode = 'dynamic';
 
+    // Ambient music and crossfade
+    const AMBIENT_MUSIC_URL = 'https://cdn.pixabay.com/download/audio/2022/10/27/audio_7d2a14c9d4.mp3'; // Or your preferred track
+    let ambientAudio = null; // Track ambient audio separately
+
     const FREQUENCIES = {
       calm: {
         happy: 'https://cdn.pixabay.com/download/audio/2023/04/19/audio_d17c6f05a6.mp3',
@@ -133,6 +137,36 @@
       statsBox.style.display = statsBox.style.display === 'none' ? 'block' : 'none';
     }
 
+    // Play ambient music with fade-in
+    function playAmbientMusic() {
+      if (ambientAudio) {
+        ambientAudio.pause();
+      }
+      ambientAudio = new Audio(AMBIENT_MUSIC_URL);
+      ambientAudio.loop = true;
+      ambientAudio.volume = 0;
+      ambientAudio.play();
+
+      // Fade in over 5 seconds
+      let fadeStep = 0;
+      const fadeSteps = 50;
+      const fadeInterval = 100; // ms
+      const targetVolume = 0.5;
+      const volumeStep = targetVolume / fadeSteps;
+
+      const fadeIn = setInterval(() => {
+        if (fadeStep < fadeSteps) {
+          ambientAudio.volume = Math.min(targetVolume, ambientAudio.volume + volumeStep);
+          fadeStep++;
+        } else {
+          clearInterval(fadeIn);
+        }
+      }, fadeInterval);
+
+      currentAudio = ambientAudio; // For consistency elsewhere
+    }
+
+    // Crossfade to emotion music
     async function changeMusic(emotion) {
       if (currentMode === 'calm') {
         if (['angry', 'fearful', 'disgusted', 'surprised'].includes(emotion)) {
@@ -142,34 +176,40 @@
 
       const map = FREQUENCIES[currentMode];
       const url = map[emotion] || map['neutral'];
-      if (currentAudio.src === url) return;
+      if (currentAudio && currentAudio.src === url) return;
 
-      const fadeDuration = currentMode === 'calm' ? 5000 : 3000;
-      const fadeInterval = 100;
-      const steps = fadeDuration / fadeInterval;
-      const volumeStep = 0.5 / steps;
-
+      // Prepare new audio
       const newAudio = new Audio(url);
       newAudio.loop = true;
       newAudio.volume = 0;
       newAudio.play();
 
-      let currentStep = 0;
+      // Crossfade with ambient or previous audio over 5 seconds
+      let crossfadeStep = 0;
+      const crossfadeSteps = 50;
+      const crossfadeInterval = 100;
+      const targetVolume = 0.5;
+      const crossfadeVolumeStep = targetVolume / crossfadeSteps;
+
       const crossfade = setInterval(() => {
-  if (currentStep < steps) {
-    if (currentAudio.volume > 0) {
-      currentAudio.volume = Math.max(0, currentAudio.volume - volumeStep);
-    }
-    if (newAudio.volume < 0.5) {
-      newAudio.volume = Math.min(0.5, newAudio.volume + volumeStep);
-    }
-    currentStep++;
-  } else {
-    clearInterval(crossfade);
-    currentAudio.pause();
-    currentAudio = newAudio;
-  }
-}, fadeInterval);
+        if (crossfadeStep < crossfadeSteps) {
+          if (currentAudio && currentAudio.volume > 0) {
+            currentAudio.volume = Math.max(0, currentAudio.volume - crossfadeVolumeStep);
+          }
+          if (newAudio.volume < targetVolume) {
+            newAudio.volume = Math.min(targetVolume, newAudio.volume + crossfadeVolumeStep);
+          }
+          crossfadeStep++;
+        } else {
+          clearInterval(crossfade);
+          if (currentAudio) currentAudio.pause();
+          currentAudio = newAudio;
+          // Also pause ambientAudio if it was still running
+          if (ambientAudio && ambientAudio !== currentAudio) {
+            ambientAudio.pause();
+          }
+        }
+      }, crossfadeInterval);
 
       statusDiv.textContent = `Emotion: ${emotion}`;
       emotionLog.push(emotion);
@@ -191,20 +231,20 @@
         });
     }
 
-
     async function loadModels() {
-     // const modelBaseUrl = './models'; // <-- Fix: use relative path
+      // const modelBaseUrl = './models'; // <-- Fix: use relative path
       const modelBaseUrl = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
       await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
       await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
       statusDiv.textContent = 'Models loaded. Starting camera...';
       startVideo();
-}
+    }
 
     function startSession() {
       document.getElementById('consentBox').style.display = 'none';
       video.hidden = false;
       controls.style.display = 'block';
+      playAmbientMusic(); // Play ambient music immediately after "Yes"
       loadModels();
     }
 
@@ -268,39 +308,38 @@
       doc.save(`${sessionId}_summary.pdf`);
     }
 
-  document.getElementById('faceapi-script').onload = () => {
-  console.log("face-api loaded");
-};
+    document.getElementById('faceapi-script').onload = () => {
+      console.log("face-api loaded");
+    };
 
     video.addEventListener('play', () => {
-  setInterval(async () => {
-    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
-    if (detections.length > 0) {
-      const expr = detections[0].expressions;
+      setInterval(async () => {
+        const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+        if (detections.length > 0) {
+          const expr = detections[0].expressions;
 
-      // Lower the "neutral" value artificially
-      const adjustedExpr = { ...expr };
-      adjustedExpr.neutral = adjustedExpr.neutral * 0.7; // Decrease neutral by 30%
+          // Lower the "neutral" value artificially
+          const adjustedExpr = { ...expr };
+          adjustedExpr.neutral = adjustedExpr.neutral * 0.7; // Decrease neutral by 30%
 
-      // Find the top emotion after adjusting neutral
-      let topEmotion = Object.entries(adjustedExpr).reduce((a, b) => a[1] > b[1] ? a : b)[0];
+          // Find the top emotion after adjusting neutral
+          let topEmotion = Object.entries(adjustedExpr).reduce((a, b) => a[1] > b[1] ? a : b)[0];
 
-      // Optional: If neutral is still top, but another emotion is close, pick that emotion instead
-      if (topEmotion === 'neutral') {
-        // Find the second highest emotion
-        const sorted = Object.entries(adjustedExpr).sort((a, b) => b[1] - a[1]);
-        const [first, second] = sorted;
-        if (second && (first[1] - second[1] < 0.18)) { // If second is within 0.18 of neutral
-          topEmotion = second[0];
+          // If neutral is still top, but another emotion is close, pick that emotion instead
+          if (topEmotion === 'neutral') {
+            const sorted = Object.entries(adjustedExpr).sort((a, b) => b[1] - a[1]);
+            const [first, second] = sorted;
+            if (second && (first[1] - second[1] < 0.18)) { // If second is within 0.18 of neutral
+              topEmotion = second[0];
+            }
+          }
+
+          changeMusic(topEmotion);
+        } else {
+          statusDiv.textContent = "No face detected.";
         }
-      }
-
-      changeMusic(topEmotion);
-    } else {
-      statusDiv.textContent = "No face detected.";
-    }
-  }, 5000);
-});
+      }, 5000);
+    });
   </script>
 </body>
 </html>
