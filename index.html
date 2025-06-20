@@ -108,29 +108,29 @@
     let currentMode = 'dynamic';
 
     // Ambient music and crossfade
-    const AMBIENT_MUSIC_URL = 'https://cdn.pixabay.com/download/audio/2022/10/27/audio_7d2a14c9d4.mp3'; // Or your preferred track
+    const AMBIENT_MUSIC_URL = 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1''; // Or your preferred track
     let ambientAudio = null; // Track ambient audio separately
 
     const FREQUENCIES = {
-      calm: {
-        happy: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
-        sad: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
-        angry: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
-        neutral: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3',
-        surprised: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
-        fearful: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
-        disgusted: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3'
-      },
-      dynamic: {
-        happy: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
-        sad: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
-        angry: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
-        neutral: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3',
-        surprised: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
-        fearful: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
-        disgusted: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3'
-      }
-    };
+  calm: {
+    happy: 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1',
+    sad: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1',
+    angry: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
+    neutral: 'https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=pc9sgldi&raw=1',
+    surprised: 'https://www.dropbox.com/scl/fi/9utqbi6clsq2m0dxijky9/285-Frequency.mp3?rlkey=nxps67cqh30z1c3ii2x10alwu&st=c9k1ull6&raw=1',
+    disgusted: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
+    fearful: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1'
+  },
+  dynamic: {
+    happy: 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1',
+    sad: 'https://www.dropbox.com/scl/fi/mxs01qoznfztmdzb4x23x/639-Frequency.mp3?rlkey=7vpk30uh8obqe3h1r3vyuy9jd&st=ioj87wvr&raw=1',
+    angry: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
+    neutral: 'https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=pc9sgldi&raw=1',
+    surprised: 'https://www.dropbox.com/scl/fi/9utqbi6clsq2m0dxijky9/285-Frequency.mp3?rlkey=nxps67cqh30z1c3ii2x10alwu&st=c9k1ull6&raw=1',
+    fearful: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1',
+    disgusted: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1'
+  }
+};
 
     function setMode(mode) {
       currentMode = mode;
