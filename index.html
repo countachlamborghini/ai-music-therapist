@@ -134,10 +134,8 @@
     }
 
     async function changeMusic(emotion) {
-      if (currentMode === 'calm') {
-        if (['angry', 'fearful', 'disgusted', 'surprised'].includes(emotion)) {
-          emotion = 'neutral';
-        }
+      if (currentMode === 'calm' && ['angry', 'fearful', 'disgusted', 'surprised'].includes(emotion)) {
+        emotion = 'neutral';
       }
 
       const map = FREQUENCIES[currentMode];
@@ -156,20 +154,16 @@
 
       let currentStep = 0;
       const crossfade = setInterval(() => {
-  if (currentStep < steps) {
-    if (currentAudio.volume > 0) {
-      currentAudio.volume = Math.max(0, currentAudio.volume - volumeStep);
-    }
-    if (newAudio.volume < 0.5) {
-      newAudio.volume = Math.min(0.5, newAudio.volume + volumeStep);
-    }
-    currentStep++;
-  } else {
-    clearInterval(crossfade);
-    currentAudio.pause();
-    currentAudio = newAudio;
-  }
-}, fadeInterval);
+        if (currentStep < steps) {
+          currentAudio.volume = Math.max(0, currentAudio.volume - volumeStep);
+          newAudio.volume = Math.min(0.5, newAudio.volume + volumeStep);
+          currentStep++;
+        } else {
+          clearInterval(crossfade);
+          currentAudio.pause();
+          currentAudio = newAudio;
+        }
+      }, fadeInterval);
 
       statusDiv.textContent = `Emotion: ${emotion}`;
       emotionLog.push(emotion);
@@ -188,18 +182,20 @@
             const elapsed = Math.floor((Date.now() - startTime) / 1000);
             timerDiv.textContent = `Session ID: ${sessionId} | Time: ${elapsed}s`;
           }, 1000);
+        })
+        .catch(err => {
+          console.error("Camera error:", err);
+          statusDiv.textContent = `❌ Camera access failed: ${err.message}`;
         });
     }
 
-
     async function loadModels() {
-     // const modelBaseUrl = './models'; // <-- Fix: use relative path
       const modelBaseUrl = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
       await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
       await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
       statusDiv.textContent = 'Models loaded. Starting camera...';
       startVideo();
-}
+    }
 
     function startSession() {
       document.getElementById('consentBox').style.display = 'none';
@@ -268,37 +264,30 @@
       doc.save(`${sessionId}_summary.pdf`);
     }
 
-  document.getElementById('faceapi-script').onload = () => {
-  console.log("face-api loaded");
-};
+    document.getElementById('faceapi-script').onload = () => {
+      console.log("face-api.js loaded.");
+    };
 
     video.addEventListener('play', () => {
       setInterval(async () => {
-       const detections = await faceapi
-  .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-  .withFaceExpressions();
+        const detections = await faceapi
+          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+          .withFaceExpressions();
 
-if (detections.length > 0) {
-  const expr = detections[0].expressions;
+        if (detections.length > 0) {
+          const expr = detections[0].expressions;
+          let sorted = Object.entries(expr).sort((a, b) => b[1] - a[1]);
+          let topEmotion = sorted[0][0];
+          let confidence = sorted[0][1];
 
-  // Sort emotions by confidence (highest first)
-  let sorted = Object.entries(expr).sort((a, b) => b[1] - a[1]);
-  let topEmotion = sorted[0][0];
-  let confidence = sorted[0][1];
+          console.log("All detected emotions:", expr);
 
-  // Log all emotions and confidence
-  console.log("All detected emotions:", expr);
+          if (topEmotion === "neutral" && confidence < 0.6 && sorted.length > 1) {
+            console.log(`⚠️ Low-confidence neutral (${confidence.toFixed(2)}), switching to ${sorted[1][0]}`);
+            topEmotion = sorted[1][0];
+          }
 
-  // Optional: downgrade neutral if confidence is too low
-  if (topEmotion === "neutral" && confidence < 0.6 && sorted.length > 1) {
-    console.log(`⚠️ Low-confidence neutral (${confidence.toFixed(2)}), switching to ${sorted[1][0]}`);
-    topEmotion = sorted[1][0];
-  }
-
-  changeMusic(topEmotion);
-} else {
-  statusDiv.textContent = 'No face detected.';
-}
+          changeMusic(topEmotion);
         } else {
           statusDiv.textContent = "No face detected.";
         }
