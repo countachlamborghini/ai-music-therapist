@@ -108,8 +108,8 @@
     let currentMode = 'dynamic';
 
     // Ambient music and crossfade
-    const AMBIENT_MUSIC_URL = 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1'; // Or your preferred track
-    let ambientAudio = null; // Track ambient audio separately
+    const AMBIENT_MUSIC_URL = 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1';
+    let ambientAudio = null;
 
     const FREQUENCIES = {
       calm: {
@@ -142,7 +142,6 @@
       statsBox.style.display = statsBox.style.display === 'none' ? 'block' : 'none';
     }
 
-    // Play ambient music with fade-in
     function playAmbientMusic() {
       if (ambientAudio) {
         ambientAudio.pause();
@@ -152,10 +151,9 @@
       ambientAudio.volume = 0;
       ambientAudio.play();
 
-      // Fade in over 5 seconds
       let fadeStep = 0;
       const fadeSteps = 50;
-      const fadeInterval = 100; // ms
+      const fadeInterval = 100;
       const targetVolume = 0.5;
       const volumeStep = targetVolume / fadeSteps;
 
@@ -168,10 +166,9 @@
         }
       }, fadeInterval);
 
-      currentAudio = ambientAudio; // For consistency elsewhere
+      currentAudio = ambientAudio;
     }
 
-    // Crossfade to emotion music
     async function changeMusic(emotion) {
       if (currentMode === 'calm') {
         if (['angry', 'fearful', 'disgusted', 'surprised'].includes(emotion)) {
@@ -183,13 +180,11 @@
       const url = map[emotion] || map['neutral'];
       if (currentAudio && currentAudio.src === url) return;
 
-      // Prepare new audio
       const newAudio = new Audio(url);
       newAudio.loop = true;
       newAudio.volume = 0;
       newAudio.play();
 
-      // Crossfade with ambient or previous audio over 5 seconds
       let crossfadeStep = 0;
       const crossfadeSteps = 50;
       const crossfadeInterval = 100;
@@ -209,7 +204,6 @@
           clearInterval(crossfade);
           if (currentAudio) currentAudio.pause();
           currentAudio = newAudio;
-          // Also pause ambientAudio if it was still running
           if (ambientAudio && ambientAudio !== currentAudio) {
             ambientAudio.pause();
           }
@@ -220,7 +214,6 @@
       emotionLog.push(emotion);
     }
 
-    // Video and recording logic with correct MediaRecorder handling
     function startVideo() {
       navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then(stream => {
@@ -228,7 +221,7 @@
           video.hidden = false;
           video.play();
 
-          recordedChunks = []; // reset before each recording
+          recordedChunks = [];
 
           recorder = new MediaRecorder(stream);
 
@@ -268,7 +261,6 @@
     }
 
     async function loadModels() {
-      // const modelBaseUrl = './models'; // <-- Fix: use relative path
       const modelBaseUrl = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
       await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
       await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
@@ -280,7 +272,7 @@
       document.getElementById('consentBox').style.display = 'none';
       video.hidden = false;
       controls.style.display = 'block';
-      playAmbientMusic(); // Play ambient music immediately after "Yes"
+      playAmbientMusic();
       loadModels();
     }
 
@@ -293,7 +285,6 @@
       if (video.srcObject) {
         video.srcObject.getTracks().forEach(t => t.stop());
       }
-      // Download and charting handled in recorder.onstop
     }
 
     function showChart() {
@@ -344,28 +335,53 @@
       console.log("face-api loaded");
     };
 
+    // === Tweaked Emotion Detection Parameters ===
+    // - Lower threshold for "neutral" even further (to 0.5)
+    // - Require top emotion to exceed a confidence threshold (e.g. 0.35)
+    // - If "neutral" is top and another is close (within 0.14), prefer the other
+    // - If all scores are low (<0.28), report "uncertain"
+    // - Show raw values in status for debugging
+
     video.addEventListener('play', () => {
       setInterval(async () => {
         const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
         if (detections.length > 0) {
           const expr = detections[0].expressions;
 
-          // Lower the "neutral" value artificially
+          // Fine-tuned emotion logic
           const adjustedExpr = { ...expr };
-          adjustedExpr.neutral = adjustedExpr.neutral * 0.7; // Decrease neutral by 30%
+          adjustedExpr.neutral = adjustedExpr.neutral * 0.5; // Lower neutral more
 
-          // Find the top emotion after adjusting neutral
-          let topEmotion = Object.entries(adjustedExpr).reduce((a, b) => a[1] > b[1] ? a : b)[0];
+          // Find top emotion and value
+          let topEntry = Object.entries(adjustedExpr).reduce((a, b) => a[1] > b[1] ? a : b);
+          let [topEmotion, topValue] = topEntry;
 
-          // If neutral is still top, but another emotion is close, pick that emotion instead
+          // If all scores are low, say "uncertain"
+          const allLow = Object.values(adjustedExpr).every(v => v < 0.28);
+
+          if (allLow) {
+            statusDiv.textContent = `Emotion: uncertain (raw: ${Object.entries(expr).map(([k,v])=>k+':'+v.toFixed(2)).join(', ')})`;
+            emotionLog.push("uncertain");
+            return;
+          }
+
+          // If top is neutral, but another is close, use the next one
           if (topEmotion === 'neutral') {
             const sorted = Object.entries(adjustedExpr).sort((a, b) => b[1] - a[1]);
             const [first, second] = sorted;
-            if (second && (first[1] - second[1] < 0.18)) { // If second is within 0.18 of neutral
-              topEmotion = second[0];
+            if (second && (first[1] - second[1] < 0.14)) {
+              [topEmotion, topValue] = second;
             }
           }
 
+          // Require some minimum confidence for top emotion
+          if (topValue < 0.35) {
+            statusDiv.textContent = `Emotion: uncertain (raw: ${Object.entries(expr).map(([k,v])=>k+':'+v.toFixed(2)).join(', ')})`;
+            emotionLog.push("uncertain");
+            return;
+          }
+
+          statusDiv.textContent = `Emotion: ${topEmotion} (raw: ${Object.entries(expr).map(([k,v])=>k+':'+v.toFixed(2)).join(', ')})`;
           changeMusic(topEmotion);
         } else {
           statusDiv.textContent = "No face detected.";
