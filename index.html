@@ -91,59 +91,287 @@
   </div>
 
   <script>
-    let recorder;
-let recordedChunks = [];
+    const video = document.getElementById('video');
+    const statusDiv = document.getElementById('status');
+    const timerDiv = document.getElementById('timer');
+    const controls = document.getElementById('controls');
+    const statsBox = document.getElementById('statsBox');
+    const notesField = document.getElementById('notes');
 
-function startVideo() {
-  navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    .then(stream => {
-      video.srcObject = stream;
-      video.play();
+    let sessionId = `session_${Date.now()}`;
+    let startTime, recorder, recordedChunks = [], emotionLog = [];
+    let currentAudio = new Audio();
+    currentAudio.loop = true;
+    currentAudio.volume = 1;
 
-      recorder = new MediaRecorder(stream);
+    let timerInterval = null;
+    let currentMode = 'dynamic';
 
-      recordedChunks = []; // reset before each recording
+    // Ambient music and crossfade
+    const AMBIENT_MUSIC_URL = 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1'; // Or your preferred track
+    let ambientAudio = null; // Track ambient audio separately
 
-      recorder.ondataavailable = function(e) {
-        if (e.data.size > 0) {
-          recordedChunks.push(e.data);
-        }
-      };
+    const FREQUENCIES = {
+      calm: {
+        happy: 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1',
+        sad: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1',
+        angry: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
+        neutral: 'https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=pc9sgldi&raw=1',
+        surprised: 'https://www.dropbox.com/scl/fi/9utqbi6clsq2m0dxijky9/285-Frequency.mp3?rlkey=nxps67cqh30z1c3ii2x10alwu&st=c9k1ull6&raw=1',
+        disgusted: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
+        fearful: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1'
+      },
+      dynamic: {
+        happy: 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1',
+        sad: 'https://www.dropbox.com/scl/fi/mxs01qoznfztmdzb4x23x/639-Frequency.mp3?rlkey=7vpk30uh8obqe3h1r3vyuy9jd&st=ioj87wvr&raw=1',
+        angry: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
+        neutral: 'https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=pc9sgldi&raw=1',
+        surprised: 'https://www.dropbox.com/scl/fi/9utqbi6clsq2m0dxijky9/285-Frequency.mp3?rlkey=nxps67cqh30z1c3ii2x10alwu&st=c9k1ull6&raw=1',
+        fearful: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1',
+        disgusted: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1'
+      }
+    };
 
-      recorder.onstop = function() {
-        if (recordedChunks.length > 0) {
-          const blob = new Blob(recordedChunks, { type: 'video/webm' });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = 'session.webm';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('modeSelector').style.display = 'none';
+      document.getElementById('consentBox').style.display = 'block';
+    }
+
+    function toggleStats() {
+      statsBox.style.display = statsBox.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // Play ambient music with fade-in
+    function playAmbientMusic() {
+      if (ambientAudio) {
+        ambientAudio.pause();
+      }
+      ambientAudio = new Audio(AMBIENT_MUSIC_URL);
+      ambientAudio.loop = true;
+      ambientAudio.volume = 0;
+      ambientAudio.play();
+
+      // Fade in over 5 seconds
+      let fadeStep = 0;
+      const fadeSteps = 50;
+      const fadeInterval = 100; // ms
+      const targetVolume = 0.5;
+      const volumeStep = targetVolume / fadeSteps;
+
+      const fadeIn = setInterval(() => {
+        if (fadeStep < fadeSteps) {
+          ambientAudio.volume = Math.min(targetVolume, ambientAudio.volume + volumeStep);
+          fadeStep++;
         } else {
-          alert('No video data was recorded.');
+          clearInterval(fadeIn);
         }
-        showChart();
-      };
+      }, fadeInterval);
 
-      recorder.start();
-      // ... rest of your timer logic
-    })
-    .catch(err => {
-      alert("Could not start video: " + err);
+      currentAudio = ambientAudio; // For consistency elsewhere
+    }
+
+    // Crossfade to emotion music
+    async function changeMusic(emotion) {
+      if (currentMode === 'calm') {
+        if (['angry', 'fearful', 'disgusted', 'surprised'].includes(emotion)) {
+          emotion = 'neutral';
+        }
+      }
+
+      const map = FREQUENCIES[currentMode];
+      const url = map[emotion] || map['neutral'];
+      if (currentAudio && currentAudio.src === url) return;
+
+      // Prepare new audio
+      const newAudio = new Audio(url);
+      newAudio.loop = true;
+      newAudio.volume = 0;
+      newAudio.play();
+
+      // Crossfade with ambient or previous audio over 5 seconds
+      let crossfadeStep = 0;
+      const crossfadeSteps = 50;
+      const crossfadeInterval = 100;
+      const targetVolume = 0.5;
+      const crossfadeVolumeStep = targetVolume / crossfadeSteps;
+
+      const crossfade = setInterval(() => {
+        if (crossfadeStep < crossfadeSteps) {
+          if (currentAudio && currentAudio.volume > 0) {
+            currentAudio.volume = Math.max(0, currentAudio.volume - crossfadeVolumeStep);
+          }
+          if (newAudio.volume < targetVolume) {
+            newAudio.volume = Math.min(targetVolume, newAudio.volume + crossfadeVolumeStep);
+          }
+          crossfadeStep++;
+        } else {
+          clearInterval(crossfade);
+          if (currentAudio) currentAudio.pause();
+          currentAudio = newAudio;
+          // Also pause ambientAudio if it was still running
+          if (ambientAudio && ambientAudio !== currentAudio) {
+            ambientAudio.pause();
+          }
+        }
+      }, crossfadeInterval);
+
+      statusDiv.textContent = `Emotion: ${emotion}`;
+      emotionLog.push(emotion);
+    }
+
+    // Video and recording logic with correct MediaRecorder handling
+    function startVideo() {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+          video.srcObject = stream;
+          video.hidden = false;
+          video.play();
+
+          recordedChunks = []; // reset before each recording
+
+          recorder = new MediaRecorder(stream);
+
+          recorder.ondataavailable = function(e) {
+            if (e.data.size > 0) {
+              recordedChunks.push(e.data);
+            }
+          };
+
+          recorder.onstop = function() {
+            if (recordedChunks.length > 0) {
+              const blob = new Blob(recordedChunks, { type: 'video/webm' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `${sessionId}.webm`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            } else {
+              alert('No video data was recorded.');
+            }
+            showChart();
+          };
+
+          recorder.start();
+
+          startTime = Date.now();
+          timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            timerDiv.textContent = `Session ID: ${sessionId} | Time: ${elapsed}s`;
+          }, 1000);
+        })
+        .catch(err => {
+          alert("Could not start video: " + err);
+        });
+    }
+
+    async function loadModels() {
+      // const modelBaseUrl = './models'; // <-- Fix: use relative path
+      const modelBaseUrl = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+      await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
+      await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
+      statusDiv.textContent = 'Models loaded. Starting camera...';
+      startVideo();
+    }
+
+    function startSession() {
+      document.getElementById('consentBox').style.display = 'none';
+      video.hidden = false;
+      controls.style.display = 'block';
+      playAmbientMusic(); // Play ambient music immediately after "Yes"
+      loadModels();
+    }
+
+    function endSession() {
+      clearInterval(timerInterval);
+      currentAudio.pause();
+      if (recorder && recorder.state !== "inactive") {
+        recorder.stop();
+      }
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(t => t.stop());
+      }
+      // Download and charting handled in recorder.onstop
+    }
+
+    function showChart() {
+      const counts = {};
+      for (let emotion of emotionLog) {
+        counts[emotion] = (counts[emotion] || 0) + 1;
+      }
+      const labels = Object.keys(counts);
+      const data = Object.values(counts);
+
+      new Chart(document.getElementById("emotionChart"), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Emotion Frequency',
+            data,
+            backgroundColor: '#3399ff'
+          }]
+        }
+      });
+      statsBox.style.display = 'block';
+    }
+
+    async function generatePDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(16);
+      doc.text("AI Music Therapist - Session Summary", 10, 20);
+      doc.setFontSize(12);
+      doc.text(`Session ID: ${sessionId}`, 10, 30);
+      doc.text(`Timestamp: ${new Date().toLocaleString()}`, 10, 40);
+      doc.text("Emotion Log:", 10, 50);
+
+      emotionLog.forEach((e, i) => {
+        doc.text(`${i + 1}. ${e}`, 15, 60 + i * 7);
+      });
+
+      doc.text("Notes:", 10, 70 + emotionLog.length * 7);
+      const notes = notesField.value || "No notes added.";
+      doc.text(notes, 15, 80 + emotionLog.length * 7);
+
+      doc.save(`${sessionId}_summary.pdf`);
+    }
+
+    document.getElementById('faceapi-script').onload = () => {
+      console.log("face-api loaded");
+    };
+
+    video.addEventListener('play', () => {
+      setInterval(async () => {
+        const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+        if (detections.length > 0) {
+          const expr = detections[0].expressions;
+
+          // Lower the "neutral" value artificially
+          const adjustedExpr = { ...expr };
+          adjustedExpr.neutral = adjustedExpr.neutral * 0.7; // Decrease neutral by 30%
+
+          // Find the top emotion after adjusting neutral
+          let topEmotion = Object.entries(adjustedExpr).reduce((a, b) => a[1] > b[1] ? a : b)[0];
+
+          // If neutral is still top, but another emotion is close, pick that emotion instead
+          if (topEmotion === 'neutral') {
+            const sorted = Object.entries(adjustedExpr).sort((a, b) => b[1] - a[1]);
+            const [first, second] = sorted;
+            if (second && (first[1] - second[1] < 0.18)) { // If second is within 0.18 of neutral
+              topEmotion = second[0];
+            }
+          }
+
+          changeMusic(topEmotion);
+        } else {
+          statusDiv.textContent = "No face detected.";
+        }
+      }, 5000);
     });
-}
-
-function endSession() {
-  clearInterval(timerInterval);
-  currentAudio.pause();
-  if (recorder && recorder.state !== "inactive") {
-    recorder.stop();
-  }
-  if (video.srcObject) {
-    video.srcObject.getTracks().forEach(t => t.stop());
-  }
-  // No download logic here!
-}  </script>
+  </script>
 </body>
 </html>
