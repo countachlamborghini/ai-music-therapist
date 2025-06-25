@@ -1,116 +1,390 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>AI Music Therapist</title>
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.js" id="faceapi-script"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; background: #f0f0f0; }
-    video { margin-top: 20px; border: 2px solid #444; border-radius: 10px; }
-    #status { margin-top: 20px; font-size: 1.2em; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f8fbff;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      color: #004080;
+      margin-bottom: 10px;
+    }
+    video {
+      margin-top: 10px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    button {
+      margin: 10px 5px;
+      padding: 10px 16px;
+      font-size: 1em;
+      background-color: #0059b3;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #004080;
+    }
+    #status, #timer {
+      margin-top: 15px;
+      font-size: 1.1em;
+      color: #003366;
+    }
+    #statsBox {
+      display: none;
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+    textarea {
+      width: 80%;
+      height: 60px;
+      margin-top: 10px;
+      border-radius: 8px;
+      padding: 10px;
+      font-family: sans-serif;
+    }
   </style>
 </head>
 <body>
-  <h1>AI Music Therapist for Autism</h1>
-  <video id="video" width="640" height="480" autoplay muted></video>
-  <div id="status">Initializing...</div>
+  <h1>🎵 AI Music Therapist for Autism</h1>
+
+  <div id="modeSelector">
+    <p>Select Mode:</p>
+    <button onclick="setMode('calm')">🌿 Calm Mode</button>
+    <button onclick="setMode('dynamic')">🎭 Dynamic Mode</button>
+  </div>
+
+  <div id="consentBox" style="display:none;">
+    <p>Do you agree to start a session?</p>
+    <button onclick="startSession()">Yes</button>
+    <button onclick="location.reload()">No</button>
+  </div>
+
+  <video id="video" width="640" height="480" autoplay muted hidden></video>
+  <div id="status"></div>
+  <div id="timer"></div>
+  <div id="controls" style="display:none;">
+    <button onclick="endSession()">End Session</button>
+    <button onclick="location.reload()">New Session</button>
+    <button onclick="toggleStats()">Stats for Nerds</button>
+    <button onclick="generatePDF()">Download Session PDF</button>
+  </div>
+
+  <div id="statsBox">
+    <canvas id="emotionChart" width="400" height="200"></canvas>
+    <h3>Behavioral Notes</h3>
+    <textarea id="notes" placeholder="e.g., smiled, moved to beat, etc."></textarea>
+  </div>
 
   <script>
-    console.log('Script started');
-
     const video = document.getElementById('video');
     const statusDiv = document.getElementById('status');
+    const timerDiv = document.getElementById('timer');
+    const controls = document.getElementById('controls');
+    const statsBox = document.getElementById('statsBox');
+    const notesField = document.getElementById('notes');
 
-    let currentAudio = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3');
+    let sessionId = `session_${Date.now()}`;
+    let startTime, recorder, recordedChunks = [], emotionLog = [];
+    let currentAudio = new Audio();
     currentAudio.loop = true;
-    currentAudio.volume = 0.5;
+    currentAudio.volume = 1;
+
+    let timerInterval = null;
+    let currentMode = 'dynamic';
+
+    // Ambient music and crossfade
+    const AMBIENT_MUSIC_URL = 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1';
+    let ambientAudio = null;
 
     const FREQUENCIES = {
-      happy: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
-      sad: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
-      angry: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
-      neutral: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_a35b212f21.mp3',
-      surprised: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_fce1d543e6.mp3',
-      fearful: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3',
-      disgusted: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_282a7e4626.mp3'
+      calm: {
+        happy: 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1',
+        sad: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1',
+        angry: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
+        neutral: 'https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=pc9sgldi&raw=1',
+        surprised: 'https://www.dropbox.com/scl/fi/9utqbi6clsq2m0dxijky9/285-Frequency.mp3?rlkey=nxps67cqh30z1c3ii2x10alwu&st=c9k1ull6&raw=1',
+        disgusted: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
+        fearful: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1'
+      },
+      dynamic: {
+        happy: 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1',
+        sad: 'https://www.dropbox.com/scl/fi/mxs01qoznfztmdzb4x23x/639-Frequency.mp3?rlkey=7vpk30uh8obqe3h1r3vyuy9jd&st=ioj87wvr&raw=1',
+        angry: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
+        neutral: 'https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=pc9sgldi&raw=1',
+        surprised: 'https://www.dropbox.com/scl/fi/9utqbi6clsq2m0dxijky9/285-Frequency.mp3?rlkey=nxps67cqh30z1c3ii2x10alwu&st=c9k1ull6&raw=1',
+        fearful: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1',
+        disgusted: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1'
+      }
     };
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('modeSelector').style.display = 'none';
+      document.getElementById('consentBox').style.display = 'block';
+    }
+
+    function toggleStats() {
+      statsBox.style.display = statsBox.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function playAmbientMusic() {
+      if (ambientAudio) {
+        ambientAudio.pause();
+      }
+      ambientAudio = new Audio(AMBIENT_MUSIC_URL);
+      ambientAudio.loop = true;
+      ambientAudio.volume = 0;
+      ambientAudio.play();
+
+      let fadeStep = 0;
+      const fadeSteps = 50;
+      const fadeInterval = 100;
+      const targetVolume = 0.5;
+      const volumeStep = targetVolume / fadeSteps;
+
+      const fadeIn = setInterval(() => {
+        if (fadeStep < fadeSteps) {
+          ambientAudio.volume = Math.min(targetVolume, ambientAudio.volume + volumeStep);
+          fadeStep++;
+        } else {
+          clearInterval(fadeIn);
+        }
+      }, fadeInterval);
+
+      currentAudio = ambientAudio;
+    }
 
     async function changeMusic(emotion) {
-      const url = FREQUENCIES[emotion] || FREQUENCIES['neutral'];
+      if (currentMode === 'calm') {
+        if (['angry', 'fearful', 'disgusted', 'surprised'].includes(emotion)) {
+          emotion = 'neutral';
+        }
+      }
+
+      const map = FREQUENCIES[currentMode];
+      const url = map[emotion] || map['neutral'];
+      if (currentAudio && currentAudio.src === url) return;
+
       const newAudio = new Audio(url);
       newAudio.loop = true;
-      newAudio.volume = 0.5;
-      currentAudio.pause();
-      currentAudio = newAudio;
-      currentAudio.play();
-      statusDiv.textContent = `Emotion: ${emotion} | Playing frequency for mood`;
-    }
+      newAudio.volume = 0;
+      newAudio.play();
 
-    console.log('About to load models');
-    statusDiv.textContent = 'Loading models...';
+      let crossfadeStep = 0;
+      const crossfadeSteps = 50;
+      const crossfadeInterval = 100;
+      const targetVolume = 0.5;
+      const crossfadeVolumeStep = targetVolume / crossfadeSteps;
 
-    async function loadModels() {
-      try {
-        // Debug: Check if faceapi is defined
-        if (typeof faceapi === 'undefined') {
-          throw new Error('faceapi is not defined');
+      const crossfade = setInterval(() => {
+        if (crossfadeStep < crossfadeSteps) {
+          if (currentAudio && currentAudio.volume > 0) {
+            currentAudio.volume = Math.max(0, currentAudio.volume - crossfadeVolumeStep);
+          }
+          if (newAudio.volume < targetVolume) {
+            newAudio.volume = Math.min(targetVolume, newAudio.volume + crossfadeVolumeStep);
+          }
+          crossfadeStep++;
+        } else {
+          clearInterval(crossfade);
+          if (currentAudio) currentAudio.pause();
+          currentAudio = newAudio;
+          if (ambientAudio && ambientAudio !== currentAudio) {
+            ambientAudio.pause();
+          }
         }
-        console.log('faceapi is defined:', faceapi);
-        console.log('faceapi.nets:', faceapi.nets);
+      }, crossfadeInterval);
 
-        //const modelBaseUrl = 'https://github.com/countachlamborghini/ai-music-therapist/tree/main/models';
-const modelBaseUrl = 'https://countachlamborghini.github.io/ai-music-therapist/models';
-        console.log('Loading tinyFaceDetector from:', modelBaseUrl);
-        await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
-        console.log('tinyFaceDetector loaded');
-        statusDiv.textContent = 'tinyFaceDetector loaded, loading faceExpressionNet...';
-
-        console.log('Loading faceExpressionNet from:', modelBaseUrl);
-        await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
-        console.log('faceExpressionNet loaded');
-        statusDiv.textContent = 'Models loaded, starting webcam...';
-
-        startVideo();
-      } catch (err) {
-        console.error('Model loading failed:', err);
-        statusDiv.textContent = 'Failed to load models: ' + err.message + '. Check console.';
-      }
+      statusDiv.textContent = `Emotion: ${emotion}`;
+      emotionLog.push(emotion);
     }
-
-    // Wait for the face-api.js script to load before calling loadModels
-    const faceapiScript = document.getElementById('faceapi-script');
-    faceapiScript.onload = () => {
-      console.log('face-api.js script loaded');
-      loadModels();
-    };
-    faceapiScript.onerror = () => {
-      console.error('Failed to load face-api.js script');
-      statusDiv.textContent = 'Error: Failed to load face-api.js script';
-    };
 
     function startVideo() {
-      navigator.mediaDevices.getUserMedia({ video: {} })
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then(stream => {
           video.srcObject = stream;
-          console.log('Webcam started');
-          statusDiv.textContent = 'Webcam started, detecting emotions...';
+          video.hidden = false;
+          video.play();
+
+          recordedChunks = [];
+
+          recorder = new MediaRecorder(stream);
+
+          recorder.ondataavailable = function(e) {
+            if (e.data.size > 0) {
+              recordedChunks.push(e.data);
+            }
+          };
+
+          recorder.onstop = function() {
+            if (recordedChunks.length > 0) {
+              const blob = new Blob(recordedChunks, { type: 'video/webm' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `${sessionId}.webm`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            } else {
+              alert('No video data was recorded.');
+            }
+            showChart();
+          };
+
+          recorder.start();
+
+          startTime = Date.now();
+          timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            timerDiv.textContent = `Session ID: ${sessionId} | Time: ${elapsed}s`;
+          }, 1000);
         })
         .catch(err => {
-          console.error('Camera error:', err);
-          statusDiv.textContent = `Camera access failed: ${err.message}`;
+          alert("Could not start video: " + err);
         });
     }
 
+    async function loadModels() {
+      const modelBaseUrl = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+      await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
+      await faceapi.nets.faceExpressionNet.loadFromUri(modelBaseUrl);
+      statusDiv.textContent = 'Models loaded. Starting camera...';
+      startVideo();
+    }
+
+    function startSession() {
+      document.getElementById('consentBox').style.display = 'none';
+      video.hidden = false;
+      controls.style.display = 'block';
+      playAmbientMusic();
+      loadModels();
+    }
+
+    function endSession() {
+      clearInterval(timerInterval);
+      currentAudio.pause();
+      if (recorder && recorder.state !== "inactive") {
+        recorder.stop();
+      }
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(t => t.stop());
+      }
+    }
+
+    function showChart() {
+      const counts = {};
+      for (let emotion of emotionLog) {
+        counts[emotion] = (counts[emotion] || 0) + 1;
+      }
+      const labels = Object.keys(counts);
+      const data = Object.values(counts);
+
+      new Chart(document.getElementById("emotionChart"), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Emotion Frequency',
+            data,
+            backgroundColor: '#3399ff'
+          }]
+        }
+      });
+      statsBox.style.display = 'block';
+    }
+
+    async function generatePDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(16);
+      doc.text("AI Music Therapist - Session Summary", 10, 20);
+      doc.setFontSize(12);
+      doc.text(`Session ID: ${sessionId}`, 10, 30);
+      doc.text(`Timestamp: ${new Date().toLocaleString()}`, 10, 40);
+      doc.text("Emotion Log:", 10, 50);
+
+      emotionLog.forEach((e, i) => {
+        doc.text(`${i + 1}. ${e}`, 15, 60 + i * 7);
+      });
+
+      doc.text("Notes:", 10, 70 + emotionLog.length * 7);
+      const notes = notesField.value || "No notes added.";
+      doc.text(notes, 15, 80 + emotionLog.length * 7);
+
+      doc.save(`${sessionId}_summary.pdf`);
+    }
+
+    document.getElementById('faceapi-script').onload = () => {
+      console.log("face-api loaded");
+    };
+
+    // === Tweaked Emotion Detection Parameters ===
+    // - Lower threshold for "neutral" even further (to 0.5)
+    // - Require top emotion to exceed a confidence threshold (e.g. 0.35)
+    // - If "neutral" is top and another is close (within 0.14), prefer the other
+    // - If all scores are low (<0.28), report "uncertain"
+    // - Show raw values in status for debugging
+
     video.addEventListener('play', () => {
-      console.log('Video playing');
       setInterval(async () => {
         const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
         if (detections.length > 0) {
           const expr = detections[0].expressions;
-          const topEmotion = Object.entries(expr).reduce((a, b) => a[1] > b[1] ? a : b)[0];
+
+          // Fine-tuned emotion logic
+          const adjustedExpr = { ...expr };
+          adjustedExpr.neutral = adjustedExpr.neutral * 0.5; // Lower neutral more
+
+          // Find top emotion and value
+          let topEntry = Object.entries(adjustedExpr).reduce((a, b) => a[1] > b[1] ? a : b);
+          let [topEmotion, topValue] = topEntry;
+
+          // If all scores are low, say "uncertain"
+          const allLow = Object.values(adjustedExpr).every(v => v < 0.28);
+
+          if (allLow) {
+            statusDiv.textContent = `Emotion: uncertain (raw: ${Object.entries(expr).map(([k,v])=>k+':'+v.toFixed(2)).join(', ')})`;
+            emotionLog.push("uncertain");
+            return;
+          }
+
+          // If top is neutral, but another is close, use the next one
+          if (topEmotion === 'neutral') {
+            const sorted = Object.entries(adjustedExpr).sort((a, b) => b[1] - a[1]);
+            const [first, second] = sorted;
+            if (second && (first[1] - second[1] < 0.14)) {
+              [topEmotion, topValue] = second;
+            }
+          }
+
+          // Require some minimum confidence for top emotion
+          if (topValue < 0.35) {
+            statusDiv.textContent = `Emotion: uncertain (raw: ${Object.entries(expr).map(([k,v])=>k+':'+v.toFixed(2)).join(', ')})`;
+            emotionLog.push("uncertain");
+            return;
+          }
+
+          statusDiv.textContent = `Emotion: ${topEmotion} (raw: ${Object.entries(expr).map(([k,v])=>k+':'+v.toFixed(2)).join(', ')})`;
           changeMusic(topEmotion);
         } else {
-          statusDiv.textContent = 'No face detected';
+          statusDiv.textContent = "No face detected.";
         }
       }, 5000);
     });
