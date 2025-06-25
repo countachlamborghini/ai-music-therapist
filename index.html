@@ -57,6 +57,16 @@
       padding: 10px;
       font-family: sans-serif;
     }
+    .frequency-btns {
+      margin: 15px 0;
+    }
+    .frequency-btns button {
+      background-color: #008080;
+      font-weight: bold;
+    }
+    .frequency-btns button:hover {
+      background-color: #005959;
+    }
   </style>
 </head>
 <body>
@@ -73,6 +83,16 @@
     <button onclick="startSession()">Yes</button>
     <button onclick="location.reload()">No</button>
   </div>
+
+  <!-- Frequency Buttons Section -->
+  <div class="frequency-btns">
+    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/mxs01qoznfztmdzb4x23x/639-Frequency.mp3?rlkey=7vpk30uh8obqe3h1r3vyuy9jd&st=vqc7xqmt&dl=1')">Play 639 Hz</button>
+    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=hmwihr4g&dl=1')">Play 528 Hz</button>
+    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=c7efukhf&dl=1')">Play 432 Hz</button>
+    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=fdbsz1gv&dl=1')">Play 396 Hz</button>
+  </div>
+  <audio id="frequencyPlayer"></audio>
+  <!-- End Frequency Buttons Section -->
 
   <video id="video" width="640" height="480" autoplay muted hidden></video>
   <div id="status"></div>
@@ -91,6 +111,15 @@
   </div>
 
   <script>
+    // Frequency buttons logic
+    function playFrequencyAudio(src) {
+      const freqAudio = document.getElementById('frequencyPlayer');
+      freqAudio.pause();
+      freqAudio.currentTime = 0;
+      freqAudio.src = src;
+      freqAudio.play();
+    }
+
     const video = document.getElementById('video');
     const statusDiv = document.getElementById('status');
     const timerDiv = document.getElementById('timer');
@@ -100,37 +129,9 @@
 
     let sessionId = `session_${Date.now()}`;
     let startTime, recorder, recordedChunks = [], emotionLog = [];
-    let currentAudio = new Audio();
-    currentAudio.loop = true;
-    currentAudio.volume = 1;
 
     let timerInterval = null;
     let currentMode = 'dynamic';
-
-    // Ambient music and crossfade
-    const AMBIENT_MUSIC_URL = 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1';
-    let ambientAudio = null;
-
-    const FREQUENCIES = {
-      calm: {
-        happy: 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1',
-        sad: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1',
-        angry: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
-        neutral: 'https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=pc9sgldi&raw=1',
-        surprised: 'https://www.dropbox.com/scl/fi/9utqbi6clsq2m0dxijky9/285-Frequency.mp3?rlkey=nxps67cqh30z1c3ii2x10alwu&st=c9k1ull6&raw=1',
-        disgusted: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
-        fearful: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1'
-      },
-      dynamic: {
-        happy: 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1',
-        sad: 'https://www.dropbox.com/scl/fi/mxs01qoznfztmdzb4x23x/639-Frequency.mp3?rlkey=7vpk30uh8obqe3h1r3vyuy9jd&st=ioj87wvr&raw=1',
-        angry: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
-        neutral: 'https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=pc9sgldi&raw=1',
-        surprised: 'https://www.dropbox.com/scl/fi/9utqbi6clsq2m0dxijky9/285-Frequency.mp3?rlkey=nxps67cqh30z1c3ii2x10alwu&st=c9k1ull6&raw=1',
-        fearful: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1',
-        disgusted: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1'
-      }
-    };
 
     function setMode(mode) {
       currentMode = mode;
@@ -140,78 +141,6 @@
 
     function toggleStats() {
       statsBox.style.display = statsBox.style.display === 'none' ? 'block' : 'none';
-    }
-
-    function playAmbientMusic() {
-      if (ambientAudio) {
-        ambientAudio.pause();
-      }
-      ambientAudio = new Audio(AMBIENT_MUSIC_URL);
-      ambientAudio.loop = true;
-      ambientAudio.volume = 0;
-      ambientAudio.play();
-
-      let fadeStep = 0;
-      const fadeSteps = 50;
-      const fadeInterval = 100;
-      const targetVolume = 0.5;
-      const volumeStep = targetVolume / fadeSteps;
-
-      const fadeIn = setInterval(() => {
-        if (fadeStep < fadeSteps) {
-          ambientAudio.volume = Math.min(targetVolume, ambientAudio.volume + volumeStep);
-          fadeStep++;
-        } else {
-          clearInterval(fadeIn);
-        }
-      }, fadeInterval);
-
-      currentAudio = ambientAudio;
-    }
-
-    async function changeMusic(emotion) {
-      if (currentMode === 'calm') {
-        if (['angry', 'fearful', 'disgusted', 'surprised'].includes(emotion)) {
-          emotion = 'neutral';
-        }
-      }
-
-      const map = FREQUENCIES[currentMode];
-      const url = map[emotion] || map['neutral'];
-      if (currentAudio && currentAudio.src === url) return;
-
-      const newAudio = new Audio(url);
-      newAudio.loop = true;
-      newAudio.volume = 0;
-      newAudio.play();
-
-      let crossfadeStep = 0;
-      const crossfadeSteps = 50;
-      const crossfadeInterval = 100;
-      const targetVolume = 0.5;
-      const crossfadeVolumeStep = targetVolume / crossfadeSteps;
-
-      const crossfade = setInterval(() => {
-        if (crossfadeStep < crossfadeSteps) {
-          if (currentAudio && currentAudio.volume > 0) {
-            currentAudio.volume = Math.max(0, currentAudio.volume - crossfadeVolumeStep);
-          }
-          if (newAudio.volume < targetVolume) {
-            newAudio.volume = Math.min(targetVolume, newAudio.volume + crossfadeVolumeStep);
-          }
-          crossfadeStep++;
-        } else {
-          clearInterval(crossfade);
-          if (currentAudio) currentAudio.pause();
-          currentAudio = newAudio;
-          if (ambientAudio && ambientAudio !== currentAudio) {
-            ambientAudio.pause();
-          }
-        }
-      }, crossfadeInterval);
-
-      statusDiv.textContent = `Emotion: ${emotion}`;
-      emotionLog.push(emotion);
     }
 
     function startVideo() {
@@ -272,13 +201,14 @@
       document.getElementById('consentBox').style.display = 'none';
       video.hidden = false;
       controls.style.display = 'block';
-      playAmbientMusic();
       loadModels();
     }
 
     function endSession() {
       clearInterval(timerInterval);
-      currentAudio.pause();
+      // Pause frequency audio if playing
+      const freqAudio = document.getElementById('frequencyPlayer');
+      freqAudio.pause();
       if (recorder && recorder.state !== "inactive") {
         recorder.stop();
       }
@@ -382,7 +312,7 @@
           }
 
           statusDiv.textContent = `Emotion: ${topEmotion} (raw: ${Object.entries(expr).map(([k,v])=>k+':'+v.toFixed(2)).join(', ')})`;
-          changeMusic(topEmotion);
+          emotionLog.push(topEmotion);
         } else {
           statusDiv.textContent = "No face detected.";
         }
