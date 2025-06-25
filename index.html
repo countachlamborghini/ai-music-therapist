@@ -67,6 +67,9 @@
     .frequency-btns button:hover {
       background-color: #005959;
     }
+    #frequencyButtons {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -84,8 +87,12 @@
     <button onclick="location.reload()">No</button>
   </div>
 
-  <!-- Frequency Buttons Section -->
-  <div class="frequency-btns">
+  <video id="video" width="640" height="480" autoplay muted hidden></video>
+  <div id="status"></div>
+  <div id="timer"></div>
+
+  <!-- Frequency Buttons Section (hidden by default) -->
+  <div id="frequencyButtons" class="frequency-btns">
     <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/mxs01qoznfztmdzb4x23x/639-Frequency.mp3?rlkey=7vpk30uh8obqe3h1r3vyuy9jd&st=vqc7xqmt&dl=1')">Play 639 Hz</button>
     <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=hmwihr4g&dl=1')">Play 528 Hz</button>
     <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=c7efukhf&dl=1')">Play 432 Hz</button>
@@ -94,9 +101,6 @@
   <audio id="frequencyPlayer"></audio>
   <!-- End Frequency Buttons Section -->
 
-  <video id="video" width="640" height="480" autoplay muted hidden></video>
-  <div id="status"></div>
-  <div id="timer"></div>
   <div id="controls" style="display:none;">
     <button onclick="endSession()">End Session</button>
     <button onclick="location.reload()">New Session</button>
@@ -201,6 +205,7 @@
       document.getElementById('consentBox').style.display = 'none';
       video.hidden = false;
       controls.style.display = 'block';
+      document.getElementById('frequencyButtons').style.display = 'block'; // Show frequency buttons
       loadModels();
     }
 
