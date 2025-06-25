@@ -231,20 +231,9 @@
             }
           };
 
-          recorder.onstop = function () {
+          recorder.onstop = function() {
             if (recordedChunks.length > 0) {
               const blob = new Blob(recordedChunks, { type: 'video/webm' });
-
-              // Upload to Google Drive
-              const reader = new FileReader();
-              reader.onload = function () {
-                // reader.result is a DataURL: "data:video/webm;base64,AAAA..."
-                const base64Data = reader.result.split(',')[1]; // get the base64 part only
-                uploadFileToDrive(base64Data, `${sessionId}.webm`, "video/webm");
-              };
-              reader.readAsDataURL(blob); // Converts blob to base64
-
-              // Still allow local download
               const url = URL.createObjectURL(blob);
               const link = document.createElement('a');
               link.href = url;
@@ -255,7 +244,6 @@
             } else {
               alert('No video data was recorded.');
             }
-
             showChart();
           };
 
@@ -400,28 +388,6 @@
         }
       }, 5000);
     });
-
-    // --- UPDATED uploadFileToDrive ---
-    async function uploadFileToDrive(base64Data, filename, mimeType) {
-      const endpoint = "https://script.google.com/macros/s/AKfycbyDevxvK5LoGlCySFA9KbCz8z77iOsSy6S2lIBtPvRK-pRbkuITdVZul7RcCiDaZb6jIg/exec"; // Replace with your actual web app URL
-      try {
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            filename,
-            mimeType,
-            data: base64Data // <-- send the base64 part ONLY, no atob!
-          })
-        });
-        const result = await response.text();
-        console.log("Upload result:", result);
-      } catch (error) {
-        console.error("Upload error:", error);
-      }
-    }
-    // --- END uploadFileToDrive ---
-
   </script>
 </body>
 </html>
