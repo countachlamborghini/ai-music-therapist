@@ -6,8 +6,6 @@
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.js" id="faceapi-script"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://apis.google.com/js/api.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     body {
       font-family: "Segoe UI", sans-serif;
@@ -26,37 +24,51 @@
     }
     button {
       margin: 10px 5px;
-      padding: 10px 18px;
-      font-size: 1rem;
-      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 1em;
+      background-color: #0059b3;
+      color: white;
       border: none;
-      background: #3399ff;
-      color: #fff;
+      border-radius: 8px;
       cursor: pointer;
-      transition: background 0.2s;
     }
     button:hover {
-      background: #2673cc;
+      background-color: #004080;
+    }
+    #status, #timer {
+      margin-top: 15px;
+      font-size: 1.1em;
+      color: #003366;
     }
     #statsBox {
       display: none;
-      margin-top: 18px;
-      background: #f0f6ff;
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #ffffff;
       border-radius: 10px;
-      padding: 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      width: 400px;
-      margin-left: auto;
-      margin-right: auto;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
     }
     textarea {
-      width: 90%;
-      min-height: 50px;
-      margin-top: 8px;
-      border-radius: 6px;
-      border: 1px solid #c3d1e1;
-      padding: 6px;
-      font-size: 1rem;
+      width: 80%;
+      height: 60px;
+      margin-top: 10px;
+      border-radius: 8px;
+      padding: 10px;
+      font-family: sans-serif;
+    }
+    .frequency-btns {
+      margin: 15px 0;
+    }
+    .frequency-btns button {
+      background-color: #008080;
+      font-weight: bold;
+    }
+    .frequency-btns button:hover {
+      background-color: #005959;
+    }
+    #frequencyButtons {
+      display: none;
     }
   </style>
 </head>
@@ -78,20 +90,22 @@
   <video id="video" width="640" height="480" autoplay muted hidden></video>
   <div id="status"></div>
   <div id="timer"></div>
+
+  <!-- Frequency Buttons Section (hidden by default) -->
+  <div id="frequencyButtons" class="frequency-btns">
+    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/mxs01qoznfztmdzb4x23x/639-Frequency.mp3?rlkey=7vpk30uh8obqe3h1r3vyuy9jd&st=vqc7xqmt&dl=1')">Play 639 Hz</button>
+    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=hmwihr4g&dl=1')">Play 528 Hz</button>
+    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=c7efukhf&dl=1')">Play 432 Hz</button>
+    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=fdbsz1gv&dl=1')">Play 396 Hz</button>
+  </div>
+  <audio id="frequencyPlayer"></audio>
+  <!-- End Frequency Buttons Section -->
+
   <div id="controls" style="display:none;">
     <button onclick="endSession()">End Session</button>
     <button onclick="location.reload()">New Session</button>
     <button onclick="toggleStats()">Stats for Nerds</button>
     <button onclick="generatePDF()">Download Session PDF</button>
-  </div>
-
-  <div id="frequencyButtons" style="display:none;">
-    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1')">528 Hz</button>
-    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1')">396 Hz</button>
-    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/mxs01qoznfztmdzb4x23x/639-Frequency.mp3?rlkey=7vpk30uh8obqe3h1r3vyuy9jd&st=ioj87wvr&raw=1')">639 Hz</button>
-    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1')">417 Hz</button>
-    <button onclick="playFrequencyAudio('https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=pc9sgldi&raw=1')">432 Hz</button>
-    <audio id="frequencyPlayer"></audio>
   </div>
 
   <div id="statsBox">
@@ -101,98 +115,6 @@
   </div>
 
   <script>
-    // Google Drive integration using new GIS library
-    let accessToken = null;
-    let tokenClient = null;
-    let gapiInited = false;
-    let gisInited = false;
-
-    const GOOGLE_CLIENT_ID = '970987079223-0jrugo26sv7mmiqs92kp1qmht6nbj03s.apps.googleusercontent.com'; // <-- REPLACE THIS
-    const GOOGLE_API_KEY = 'AIzaSyDH6n665COOJEfc_vCtybRJiwW_lI0BsPc'; // <-- REPLACE THIS
-
-    // 1. Load the Drive API client
-    function gapiInit() {
-      gapi.load('client', async () => {
-        await gapi.client.init({
-          apiKey: GOOGLE_API_KEY,
-          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-        });
-        gapiInited = true;
-      });
-    }
-
-    // 2. Initialize the GIS token client
-    function gisInit() {
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/drive.file',
-        callback: (tokenResponse) => {
-          accessToken = tokenResponse.access_token;
-          if (typeof window._afterToken === "function") {
-            window._afterToken();
-            window._afterToken = null;
-          }
-        },
-      });
-      gisInited = true;
-    }
-
-    // 3. Ensure user is authenticated and token is ready before upload
-    function ensureAccessToken(callback) {
-      if (accessToken) {
-        callback();
-      } else {
-        window._afterToken = callback;
-        tokenClient.requestAccessToken({prompt: 'consent'}); // always prompts for demo
-      }
-    }
-
-    // 4. Upload video to Google Drive
-    function uploadToDrive(blob, filename) {
-      if (!accessToken) {
-        alert("No access token. Please sign in.");
-        return;
-      }
-      const metadata = {
-        name: filename,
-        mimeType: 'video/webm'
-      };
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', blob);
-
-      fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-        body: form,
-      })
-      .then(res => res.json().then(data => ({status: res.status, body: data})))
-      .then(({status, body}) => {
-        if (status !== 200 && status !== 201) {
-          alert('Upload failed: ' + JSON.stringify(body));
-        } else {
-          alert('Uploaded to Drive! File ID: ' + body.id);
-        }
-      })
-      .catch(e => alert('Upload error: ' + e));
-    }
-
-    // Ensure both gapi and gis are loaded before use
-    window.addEventListener('load', function() {
-      let gapiInterval = setInterval(() => {
-        if (typeof gapi !== "undefined") {
-          clearInterval(gapiInterval);
-          gapiInit();
-        }
-      }, 100);
-      let gisInterval = setInterval(() => {
-        if (typeof google !== "undefined" && google.accounts && google.accounts.oauth2) {
-          clearInterval(gisInterval);
-          gisInit();
-        }
-      }, 100);
-    });
-
     // Frequency buttons logic
     function playFrequencyAudio(src) {
       const freqAudio = document.getElementById('frequencyPlayer');
@@ -225,76 +147,6 @@
       statsBox.style.display = statsBox.style.display === 'none' ? 'block' : 'none';
     }
 
-    function playAmbientMusic() {
-      if (ambientAudio) {
-        ambientAudio.pause();
-      }
-      ambientAudio = new Audio(AMBIENT_MUSIC_URL);
-      ambientAudio.loop = true;
-      ambientAudio.volume = 0;
-      ambientAudio.play();
-
-      let fadeStep = 0;
-      const fadeSteps = 50;
-      const fadeInterval = 100;
-      const targetVolume = 0.5;
-      const volumeStep = targetVolume / fadeSteps;
-      const fadeIn = setInterval(() => {
-        if (fadeStep < fadeSteps) {
-          ambientAudio.volume = Math.min(targetVolume, ambientAudio.volume + volumeStep);
-          fadeStep++;
-        } else {
-          clearInterval(fadeIn);
-        }
-      }, fadeInterval);
-
-      currentAudio = ambientAudio;
-    }
-
-    async function changeMusic(emotion) {
-      if (currentMode === 'calm') {
-        if (['angry', 'fearful', 'disgusted', 'surprised'].includes(emotion)) {
-          emotion = 'neutral';
-        }
-      }
-      const map = FREQUENCIES[currentMode];
-      const url = map[emotion] || map['neutral'];
-      if (currentAudio && currentAudio.src === url) return;
-
-      const newAudio = new Audio(url);
-      newAudio.loop = true;
-      newAudio.volume = 0;
-      newAudio.play();
-
-      let crossfadeStep = 0;
-      const crossfadeSteps = 50;
-      const crossfadeInterval = 100;
-      const targetVolume = 0.5;
-      const crossfadeVolumeStep = targetVolume / crossfadeSteps;
-
-      const crossfade = setInterval(() => {
-        if (crossfadeStep < crossfadeSteps) {
-          if (currentAudio && currentAudio.volume > 0) {
-            currentAudio.volume = Math.max(0, currentAudio.volume - crossfadeVolumeStep);
-          }
-          if (newAudio.volume < targetVolume) {
-            newAudio.volume = Math.min(targetVolume, newAudio.volume + crossfadeVolumeStep);
-          }
-          crossfadeStep++;
-        } else {
-          clearInterval(crossfade);
-          if (currentAudio) currentAudio.pause();
-          currentAudio = newAudio;
-          if (ambientAudio && ambientAudio !== currentAudio) {
-            ambientAudio.pause();
-          }
-        }
-      }, crossfadeInterval);
-
-      statusDiv.textContent = `Emotion: ${emotion}`;
-      emotionLog.push(emotion);
-    }
-
     function startVideo() {
       navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then(stream => {
@@ -315,10 +167,13 @@
           recorder.onstop = function() {
             if (recordedChunks.length > 0) {
               const blob = new Blob(recordedChunks, { type: 'video/webm' });
-              // Use GIS for authentication (new way)
-              ensureAccessToken(() => {
-                uploadToDrive(blob, `${sessionId}.webm`);
-              });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `${sessionId}.webm`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
             } else {
               alert('No video data was recorded.');
             }
@@ -350,8 +205,7 @@
       document.getElementById('consentBox').style.display = 'none';
       video.hidden = false;
       controls.style.display = 'block';
-      document.getElementById('frequencyButtons').style.display = 'block';
-      playAmbientMusic();
+      document.getElementById('frequencyButtons').style.display = 'block'; // Show frequency buttons
       loadModels();
     }
 
@@ -437,13 +291,21 @@
           let topEntry = Object.entries(adjustedExpr).reduce((a, b) => a[1] > b[1] ? a : b);
           let [topEmotion, topValue] = topEntry;
 
-          // If neutral is top, but another is close, prefer the other
-          if (topEmotion === "neutral") {
-            let close = Object.entries(adjustedExpr)
-              .filter(([k, v]) => k !== "neutral" && (adjustedExpr.neutral - v) < 0.14)
-              .sort((a, b) => b[1] - a[1]);
-            if (close.length > 0) {
-              [topEmotion, topValue] = close[0];
+          // If all scores are low, say "uncertain"
+          const allLow = Object.values(adjustedExpr).every(v => v < 0.28);
+
+          if (allLow) {
+            statusDiv.textContent = `Emotion: uncertain (raw: ${Object.entries(expr).map(([k,v])=>k+':'+v.toFixed(2)).join(', ')})`;
+            emotionLog.push("uncertain");
+            return;
+          }
+
+          // If top is neutral, but another is close, use the next one
+          if (topEmotion === 'neutral') {
+            const sorted = Object.entries(adjustedExpr).sort((a, b) => b[1] - a[1]);
+            const [first, second] = sorted;
+            if (second && (first[1] - second[1] < 0.14)) {
+              [topEmotion, topValue] = second;
             }
           }
 
@@ -455,37 +317,12 @@
           }
 
           statusDiv.textContent = `Emotion: ${topEmotion} (raw: ${Object.entries(expr).map(([k,v])=>k+':'+v.toFixed(2)).join(', ')})`;
-          changeMusic(topEmotion);
+          emotionLog.push(topEmotion);
         } else {
           statusDiv.textContent = "No face detected.";
         }
       }, 5000);
     });
-
-    // Music URLs and variables
-    const AMBIENT_MUSIC_URL = 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1';
-    let ambientAudio = null;
-    let currentAudio = new Audio();
-    currentAudio.loop = true;
-    currentAudio.volume = 1;
-    const FREQUENCIES = {
-      calm: {
-        happy: 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1',
-        sad: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1',
-        angry: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
-        neutral: 'https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=pc9sgldi&raw=1',
-        disgusted: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
-        fearful: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1'
-      },
-      dynamic: {
-        happy: 'https://www.dropbox.com/scl/fi/uvq6k55rh9z7nb17y6bs2/528-Frequency.mp3?rlkey=8bao8ezo8yxkglwo0uk3m51kk&st=jxls3qtq&raw=1',
-        sad: 'https://www.dropbox.com/scl/fi/mxs01qoznfztmdzb4x23x/639-Frequency.mp3?rlkey=7vpk30uh8obqe3h1r3vyuy9jd&st=ioj87wvr&raw=1',
-        angry: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
-        neutral: 'https://www.dropbox.com/scl/fi/k5zbhxvpdurkdwh80qem2/432-Frequency.mp3?rlkey=agheweifjgubmz02mha80fnxr&st=pc9sgldi&raw=1',
-        disgusted: 'https://www.dropbox.com/scl/fi/r7stgsegustdexa1zx9fz/417-Frequency.mp3?rlkey=i1cx6h5ukestortm61s052ti2&st=aupsx8ko&raw=1',
-        fearful: 'https://www.dropbox.com/scl/fi/19od1idmmp7dl688ulm3i/396-Frequency.mp3?rlkey=7ktuklv47oqgzgf3ev29xwv3f&st=2m4ml2fx&raw=1'
-      }
-    };
   </script>
 </body>
 </html>
