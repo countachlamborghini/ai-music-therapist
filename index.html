@@ -7,6 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://apis.google.com/js/api.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     body {
       font-family: "Segoe UI", sans-serif;
@@ -100,24 +101,58 @@
   </div>
 
   <script>
-    // Google Drive integration variables and functions
-    let gapiInitialized = false;
+    // Google Drive integration using new GIS library
+    let accessToken = null;
+    let tokenClient = null;
+    let gapiInited = false;
+    let gisInited = false;
+
+    const GOOGLE_CLIENT_ID = '970987079223-0jrugo26sv7mmiqs92kp1qmht6nbj03s.apps.googleusercontent.com'; // <-- REPLACE THIS
+    const GOOGLE_API_KEY = 'AIzaSyDH6n665COOJEfc_vCtybRJiwW_lI0BsPc'; // <-- REPLACE THIS
+
+    // 1. Load the Drive API client
     function gapiInit() {
-      gapi.load('client:auth2', () => {
-        gapi.client.init({
-          apiKey: 'AIzaSyDH6n665COOJEfc_vCtybRJiwW_lI0BsPc', // <-- REPLACE WITH YOUR API KEY
-          clientId: '970987079223-0jrugo26sv7mmiqs92kp1qmht6nbj03s.apps.googleusercontent.com', // <-- REPLACE WITH YOUR CLIENT ID
+      gapi.load('client', async () => {
+        await gapi.client.init({
+          apiKey: GOOGLE_API_KEY,
           discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-          scope: 'https://www.googleapis.com/auth/drive.file'
-        }).then(() => {
-          gapiInitialized = true;
         });
+        gapiInited = true;
       });
     }
-    function gapiSignIn() {
-      return gapi.auth2.getAuthInstance().signIn();
+
+    // 2. Initialize the GIS token client
+    function gisInit() {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: (tokenResponse) => {
+          accessToken = tokenResponse.access_token;
+          if (typeof window._afterToken === "function") {
+            window._afterToken();
+            window._afterToken = null;
+          }
+        },
+      });
+      gisInited = true;
     }
+
+    // 3. Ensure user is authenticated and token is ready before upload
+    function ensureAccessToken(callback) {
+      if (accessToken) {
+        callback();
+      } else {
+        window._afterToken = callback;
+        tokenClient.requestAccessToken({prompt: 'consent'}); // always prompts for demo
+      }
+    }
+
+    // 4. Upload video to Google Drive
     function uploadToDrive(blob, filename) {
+      if (!accessToken) {
+        alert("No access token. Please sign in.");
+        return;
+      }
       const metadata = {
         name: filename,
         mimeType: 'video/webm'
@@ -128,17 +163,35 @@
 
       fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
         method: 'POST',
-        headers: new Headers({ 'Authorization': 'Bearer ' + gapi.auth.getToken().access_token }),
+        headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
         body: form,
       })
-      .then(res => res.json())
-      .then(val => alert('Uploaded to Drive! File ID: ' + val.id))
+      .then(res => res.json().then(data => ({status: res.status, body: data})))
+      .then(({status, body}) => {
+        if (status !== 200 && status !== 201) {
+          alert('Upload failed: ' + JSON.stringify(body));
+        } else {
+          alert('Uploaded to Drive! File ID: ' + body.id);
+        }
+      })
       .catch(e => alert('Upload error: ' + e));
     }
-    // Initialize Google API client as soon as possible
-    window.onload = function() {
-      gapiInit();
-    };
+
+    // Ensure both gapi and gis are loaded before use
+    window.addEventListener('load', function() {
+      let gapiInterval = setInterval(() => {
+        if (typeof gapi !== "undefined") {
+          clearInterval(gapiInterval);
+          gapiInit();
+        }
+      }, 100);
+      let gisInterval = setInterval(() => {
+        if (typeof google !== "undefined" && google.accounts && google.accounts.oauth2) {
+          clearInterval(gisInterval);
+          gisInit();
+        }
+      }, 100);
+    });
 
     // Frequency buttons logic
     function playFrequencyAudio(src) {
@@ -262,12 +315,8 @@
           recorder.onstop = function() {
             if (recordedChunks.length > 0) {
               const blob = new Blob(recordedChunks, { type: 'video/webm' });
-              // Google Drive upload instead of download
-              if (!gapiInitialized) {
-                alert("Google API not initialized. Please reload the page.");
-                return;
-              }
-              gapiSignIn().then(() => {
+              // Use GIS for authentication (new way)
+              ensureAccessToken(() => {
                 uploadToDrive(blob, `${sessionId}.webm`);
               });
             } else {
